@@ -9,6 +9,7 @@ package io.zeebe.db;
 
 import java.io.File;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 
 /**
  * The zeebe database, to store key value pairs in different column families. The column families
@@ -61,4 +62,25 @@ public interface ZeebeDb<ColumnFamilyType extends Enum<ColumnFamilyType>> extend
    * @return {@code true} if the column is empty, otherwise {@code false}
    */
   boolean isEmpty(ColumnFamilyType column, TransactionContext context);
+
+  /**
+   * This method iterates over all entries for a given column family and presents each entry to the
+   * consumer
+   *
+   * <p><strong>Hint</strong> This method should only be used in tests
+   *
+   * @param columnFamily the enum instance of the column family
+   * @param context the context that is used to access the database
+   * @param keyInstance this instance defines the type of the column family key type
+   * @param valueInstance this instance defines the type of the column family value type
+   * @param visitor the visitor that will be called for each entry
+   * @param <KeyType> the key type of the column family
+   * @param <ValueType> the value type of the column family
+   */
+  <KeyType extends DbKey, ValueType extends DbValue> void forEach(
+      final ColumnFamilyType columnFamily,
+      final DbContext context,
+      final KeyType keyInstance,
+      final ValueType valueInstance,
+      final BiConsumer<KeyType, ValueType> visitor);
 }
