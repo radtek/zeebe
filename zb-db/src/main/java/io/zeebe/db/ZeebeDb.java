@@ -79,7 +79,7 @@ public interface ZeebeDb<ColumnFamilyType extends Enum<ColumnFamilyType>> extend
    */
   <KeyType extends DbKey, ValueType extends DbValue> void forEach(
       final ColumnFamilyType columnFamily,
-      final DbContext context,
+      final TransactionContext context,
       final KeyType keyInstance,
       final ValueType valueInstance,
       final BiConsumer<KeyType, ValueType> visitor);
