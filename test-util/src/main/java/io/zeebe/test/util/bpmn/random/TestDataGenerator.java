@@ -17,14 +17,14 @@ import java.util.Set;
 
 public class TestDataGenerator {
 
-  static final Random random = new Random();
+  static final Random RANDOM = new Random();
 
   public static Collection<TestDataRecord> generateTestRecords(
       final int workflows, final int pathsPerWorkflow) {
     final List<TestDataRecord> records = new ArrayList<>();
 
     for (int workflowIndex = 0; workflowIndex < workflows; workflowIndex++) {
-      final long workflowSeed = random.nextLong();
+      final long workflowSeed = RANDOM.nextLong();
 
       final RandomWorkflowGenerator generator =
           new RandomWorkflowGenerator(workflowSeed, null, null, null);
@@ -33,7 +33,7 @@ public class TestDataGenerator {
 
       final Set<ExecutionPath> paths = new HashSet<>();
       for (int pathIndex = 0; pathIndex < pathsPerWorkflow; pathIndex++) {
-        final long pathSeed = random.nextLong();
+        final long pathSeed = RANDOM.nextLong();
 
         final ExecutionPath path = generator.findRandomExecutionPath(pathSeed);
 
