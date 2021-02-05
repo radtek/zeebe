@@ -103,7 +103,9 @@ public class NoopSnapshotStore implements PersistedSnapshotStore {
   }
 
   @Override
-  public void delete() {}
+  public ActorFuture<Void> delete() {
+    return null;
+  }
 
   @Override
   public void close() {}

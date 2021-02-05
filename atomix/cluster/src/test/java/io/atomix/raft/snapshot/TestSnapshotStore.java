@@ -74,9 +74,10 @@ public class TestSnapshotStore implements ReceivableSnapshotStore {
   }
 
   @Override
-  public void delete() {
+  public ActorFuture<Void> delete() {
     currentPersistedSnapshot.set(null);
     receivedSnapshots.clear();
+    return null;
   }
 
   @Override

@@ -75,7 +75,7 @@ public class FileBasedSnapshotStoreTest {
     // given
 
     // when
-    factory.getPersistedSnapshotStore(partitionName).delete();
+    factory.getPersistedSnapshotStore(partitionName).delete().join();
 
     // then
     assertThat(pendingSnapshotsDir).doesNotExist();
@@ -93,7 +93,7 @@ public class FileBasedSnapshotStoreTest {
             .newTransientSnapshot(index, term, 1, 0)
             .orElseThrow();
     transientSnapshot.take(this::createSnapshotDir);
-    final var persistedSnapshot = transientSnapshot.persist();
+    final var persistedSnapshot = transientSnapshot.persist().join();
 
     // when
     final var snapshotStore =

@@ -64,6 +64,7 @@ public interface PersistedSnapshotStore extends CloseableSilently {
    * <p>The snapshot store will be deleted by simply reading {@code snapshot} file names from disk
    * and deleting snapshot files directly. Deleting the snapshot store does not involve reading any
    * snapshot files into memory.
+   * @return
    */
-  void delete();
+  ActorFuture<Void> delete();
 }

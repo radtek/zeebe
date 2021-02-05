@@ -83,7 +83,21 @@ public final class FileBasedTransientSnapshot implements TransientSnapshot {
 
   @Override
   public ActorFuture<PersistedSnapshot> persist() {
-    return actor.call(() -> snapshotStore.newSnapshot(metadata, directory));
+    final CompletableActorFuture<PersistedSnapshot> future = new CompletableActorFuture<>();
+    actor.call(
+        () -> {
+          if (!takenFuture.isDone()) {
+            future.completeExceptionally(new IllegalStateException("Snapshot is not taken"));
+            return;
+          }
+          try {
+            final var snapshot = snapshotStore.newSnapshot(metadata, directory);
+            future.complete(snapshot);
+          } catch (final Exception e) {
+            future.completeExceptionally(e);
+          }
+        });
+    return future;
   }
 
   private void abortInternal() {

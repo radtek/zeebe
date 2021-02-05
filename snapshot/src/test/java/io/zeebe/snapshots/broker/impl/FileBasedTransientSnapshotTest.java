@@ -60,6 +60,7 @@ public class FileBasedTransientSnapshotTest {
     actorScheduler.start();
     return actorScheduler;
   }
+
   @Test
   public void shouldNotCreateDirForTakeTransientSnapshot() {
     // given
@@ -98,7 +99,7 @@ public class FileBasedTransientSnapshotTest {
         persistedSnapshotStore.newTransientSnapshot(index, term, 3, 4).orElseThrow();
 
     // when
-    transientSnapshot.take(this::createSnapshotDir);
+    transientSnapshot.take(this::createSnapshotDir).join();
 
     // then
     assertThat(snapshotsDir.toFile().listFiles()).isEmpty();
@@ -124,10 +125,10 @@ public class FileBasedTransientSnapshotTest {
     final var index = 1L;
     final var term = 0L;
     final var transientSnapshot = persistedSnapshotStore.newTransientSnapshot(index, term, 1, 0);
-    transientSnapshot.orElseThrow().take(this::createSnapshotDir);
+    transientSnapshot.orElseThrow().take(this::createSnapshotDir).join();
 
     // when
-    transientSnapshot.get().abort();
+    transientSnapshot.get().abort().join();
 
     // then
     assertThat(snapshotsDir.toFile().listFiles()).isEmpty();

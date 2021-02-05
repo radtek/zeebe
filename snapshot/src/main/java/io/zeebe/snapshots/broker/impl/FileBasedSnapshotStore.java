@@ -156,9 +156,9 @@ public final class FileBasedSnapshotStore extends Actor
   }
 
   @Override
-  public void delete() {
+  public ActorFuture<Void> delete() {
     // TODO: Why do we want to delete all snapshots?
-    actor.call(
+    return actor.call(
         () -> {
           currentPersistedSnapshotRef.set(null);
 

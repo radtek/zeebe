@@ -184,7 +184,7 @@ public class FileBasedReceivedSnapshot implements ReceivedSnapshot {
 
   @Override
   public ActorFuture<PersistedSnapshot> persist() {
-    final CompletableActorFuture<PersistedSnapshot> future = new CompletableActorFuture();
+    final CompletableActorFuture<PersistedSnapshot> future = new CompletableActorFuture<>();
     actor.call(() -> persistInernal(future));
     return future;
   }
@@ -207,10 +207,16 @@ public class FileBasedReceivedSnapshot implements ReceivedSnapshot {
     if (snapshotStore.hasSnapshotId(metadata.getSnapshotIdAsString())) {
       abortInternal();
       future.complete(snapshotStore.getLatestSnapshot().orElseThrow());
+      return;
     }
 
     final var files = directory.toFile().listFiles();
-    Objects.requireNonNull(files, "No chunks have been applied yet");
+    try {
+      Objects.requireNonNull(files, "No chunks have been applied yet");
+    } catch (final Exception e) {
+      future.completeExceptionally(e);
+      return;
+    }
 
     if (files.length != expectedTotalCount) {
       future.completeExceptionally(
