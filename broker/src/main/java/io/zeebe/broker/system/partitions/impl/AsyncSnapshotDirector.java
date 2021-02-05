@@ -184,21 +184,23 @@ public final class AsyncSnapshotDirector extends Actor {
                   && lastWrittenEventPosition != null
                   && currentCommitPosition >= lastWrittenEventPosition) {
 
-                try {
-                  final var snapshot = pendingSnapshot.persist();
+                final var snapshotPersistfuture = pendingSnapshot.persist();
 
-                  LOG.info(
-                      "Current commit position {} is greater than {}, snapshot {} is valid and has been persisted.",
-                      currentCommitPosition,
-                      lastWrittenEventPosition,
-                      snapshot.getId());
-                } catch (final Exception ex) {
-                  LOG.error(ERROR_MSG_MOVE_SNAPSHOT, ex);
-                } finally {
-                  lastWrittenEventPosition = null;
-                  takingSnapshot = false;
-                  pendingSnapshot = null;
-                }
+                snapshotPersistfuture.onComplete(
+                    (snapshot, persistError) -> {
+                      if (persistError != null) {
+                        LOG.error(ERROR_MSG_MOVE_SNAPSHOT, persistError);
+                      } else {
+                        LOG.info(
+                            "Current commit position {} is greater than {}, snapshot {} is valid and has been persisted.",
+                            currentCommitPosition,
+                            lastWrittenEventPosition,
+                            snapshot.getId());
+                      }
+                      lastWrittenEventPosition = null;
+                      takingSnapshot = false;
+                      pendingSnapshot = null;
+                    });
               }
             });
   }

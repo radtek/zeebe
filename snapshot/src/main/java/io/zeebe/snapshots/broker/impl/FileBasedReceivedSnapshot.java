@@ -14,6 +14,8 @@ import io.zeebe.snapshots.raft.ReceivedSnapshot;
 import io.zeebe.snapshots.raft.SnapshotChunk;
 import io.zeebe.util.ChecksumUtil;
 import io.zeebe.util.FileUtil;
+import io.zeebe.util.sched.ActorControl;
+import io.zeebe.util.sched.future.ActorFuture;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -36,6 +38,7 @@ public class FileBasedReceivedSnapshot implements ReceivedSnapshot {
   private static final boolean SUCCESS = true;
 
   private final Path directory;
+  private final ActorControl actor;
   private final FileBasedSnapshotStore snapshotStore;
 
   private ByteBuffer expectedId;
@@ -46,10 +49,12 @@ public class FileBasedReceivedSnapshot implements ReceivedSnapshot {
   FileBasedReceivedSnapshot(
       final FileBasedSnapshotMetadata metadata,
       final Path directory,
-      final FileBasedSnapshotStore snapshotStore) {
+      final FileBasedSnapshotStore snapshotStore,
+      final ActorControl actor) {
     this.metadata = metadata;
     this.snapshotStore = snapshotStore;
     this.directory = directory;
+    this.actor = actor;
     expectedSnapshotChecksum = Long.MIN_VALUE;
     expectedTotalCount = Integer.MIN_VALUE;
   }
@@ -60,26 +65,22 @@ public class FileBasedReceivedSnapshot implements ReceivedSnapshot {
   }
 
   @Override
-  public boolean containsChunk(final ByteBuffer chunkId) {
-    return Files.exists(directory.resolve(getFile(chunkId)));
+  public ActorFuture<Boolean> apply(final SnapshotChunk snapshotChunk) throws IOException {
+    return actor.call(() -> applyInternal(snapshotChunk));
   }
 
-  @Override
-  public boolean isExpectedChunk(final ByteBuffer chunkId) {
-    if (expectedId == null) {
-      return chunkId == null;
+  boolean containsChunk(final String chunkId) {
+    // TODO: These can be internal methods
+    return Files.exists(directory.resolve(chunkId));
+  }
+
+  private Boolean applyInternal(final SnapshotChunk snapshotChunk) throws IOException {
+
+
+    if(containsChunk(snapshotChunk.getChunkName())) {
+      return true;
     }
 
-    return expectedId.equals(chunkId);
-  }
-
-  @Override
-  public void setNextExpected(final ByteBuffer nextChunkId) {
-    expectedId = nextChunkId;
-  }
-
-  @Override
-  public boolean apply(final SnapshotChunk snapshotChunk) throws IOException {
     final var currentSnapshotChecksum = snapshotChunk.getSnapshotChecksum();
 
     if (isSnapshotIdInvalid(snapshotChunk.getSnapshotId())) {
@@ -179,21 +180,28 @@ public class FileBasedReceivedSnapshot implements ReceivedSnapshot {
 
   @Override
   public void abort() {
-    try {
-      LOGGER.debug("DELETE dir {}", directory);
-      FileUtil.deleteFolder(directory);
-    } catch (final NoSuchFileException nsfe) {
-      LOGGER.debug(
-          "Tried to delete pending dir {}, but doesn't exist. Either was already removed or no chunk was applied until now.",
-          directory,
-          nsfe);
-    } catch (final IOException e) {
-      LOGGER.warn("Failed to delete pending snapshot {}", this, e);
-    }
+    actor.call(
+        () -> {
+          try {
+            LOGGER.debug("DELETE dir {}", directory);
+            FileUtil.deleteFolder(directory);
+          } catch (final NoSuchFileException nsfe) {
+            LOGGER.debug(
+                "Tried to delete pending dir {}, but doesn't exist. Either was already removed or no chunk was applied until now.",
+                directory,
+                nsfe);
+          } catch (final IOException e) {
+            LOGGER.warn("Failed to delete pending snapshot {}", this, e);
+          }
+        });
   }
 
   @Override
-  public PersistedSnapshot persist() {
+  public ActorFuture<PersistedSnapshot> persist() {
+    return actor.call(this::persistInernal);
+  }
+
+  private PersistedSnapshot persistInernal() {
     if (snapshotStore.hasSnapshotId(metadata.getSnapshotIdAsString())) {
       abort();
       return snapshotStore.getLatestSnapshot().orElseThrow();
@@ -226,10 +234,6 @@ public class FileBasedReceivedSnapshot implements ReceivedSnapshot {
     }
 
     return snapshotStore.newSnapshot(metadata, directory);
-  }
-
-  public Path getPath() {
-    return directory;
   }
 
   private String getFile(final ByteBuffer chunkId) {

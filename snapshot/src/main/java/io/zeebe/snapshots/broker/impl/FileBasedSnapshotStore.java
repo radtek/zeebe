@@ -16,6 +16,9 @@ import io.zeebe.snapshots.raft.ReceivableSnapshotStore;
 import io.zeebe.snapshots.raft.ReceivedSnapshot;
 import io.zeebe.snapshots.raft.TransientSnapshot;
 import io.zeebe.util.FileUtil;
+import io.zeebe.util.sched.Actor;
+import io.zeebe.util.sched.ActorScheduler;
+import io.zeebe.util.sched.future.ActorFuture;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -34,7 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class FileBasedSnapshotStore
+public final class FileBasedSnapshotStore extends Actor
     implements ConstructableSnapshotStore, ReceivableSnapshotStore {
   // first is the metadata and the second the the received snapshot count
   private static final String RECEIVING_DIR_FORMAT = "%s-%d";
@@ -49,7 +52,9 @@ public final class FileBasedSnapshotStore
   private final Set<PersistedSnapshotListener> listeners;
 
   private final SnapshotMetrics snapshotMetrics;
+  private final ActorScheduler actorScheduler;
 
+  // Use AtomicReference so that getting latest snapshot doesn't have to go through the actor
   private final AtomicReference<FileBasedSnapshot> currentPersistedSnapshotRef;
   // used to write concurrently received snapshots in different pending directories
   private final AtomicLong receivingSnapshotStartCount;
@@ -57,16 +62,23 @@ public final class FileBasedSnapshotStore
   public FileBasedSnapshotStore(
       final SnapshotMetrics snapshotMetrics,
       final Path snapshotsDirectory,
-      final Path pendingDirectory) {
+      final Path pendingDirectory,
+      final ActorScheduler actorScheduler) {
     this.snapshotsDirectory = snapshotsDirectory;
     this.pendingDirectory = pendingDirectory;
     this.snapshotMetrics = snapshotMetrics;
+    this.actorScheduler = actorScheduler;
     receivingSnapshotStartCount = new AtomicLong();
 
     listeners = new CopyOnWriteArraySet<>();
 
     // load previous snapshots
     currentPersistedSnapshotRef = new AtomicReference<>(loadLatestSnapshot(snapshotsDirectory));
+    purgePendingSnapshots();
+  }
+
+  public void open() {
+    actorScheduler.submitActor(this).join();
   }
 
   private FileBasedSnapshot loadLatestSnapshot(final Path snapshotDirectory) {
@@ -129,20 +141,13 @@ public final class FileBasedSnapshotStore
   }
 
   @Override
-  public void purgePendingSnapshots() throws IOException {
-    try (final var files = Files.list(pendingDirectory)) {
-      files.filter(Files::isDirectory).forEach(this::purgePendingSnapshot);
-    }
+  public ActorFuture<Boolean> addSnapshotListener(final PersistedSnapshotListener listener) {
+    return actor.call(() -> listeners.add(listener));
   }
 
   @Override
-  public void addSnapshotListener(final PersistedSnapshotListener listener) {
-    listeners.add(listener);
-  }
-
-  @Override
-  public void removeSnapshotListener(final PersistedSnapshotListener listener) {
-    listeners.remove(listener);
+  public ActorFuture<Boolean> removeSnapshotListener(final PersistedSnapshotListener listener) {
+    return actor.call(() -> listeners.remove(listener));
   }
 
   @Override
@@ -152,20 +157,35 @@ public final class FileBasedSnapshotStore
 
   @Override
   public void delete() {
-    currentPersistedSnapshotRef.set(null);
+    // TODO: Why do we want to delete all snapshots?
+    actor.call(
+        () -> {
+          currentPersistedSnapshotRef.set(null);
 
-    try {
-      LOGGER.debug("DELETE FOLDER {}", snapshotsDirectory);
-      FileUtil.deleteFolder(snapshotsDirectory);
-    } catch (final IOException e) {
-      throw new UncheckedIOException(e);
-    }
+          try {
+            LOGGER.debug("DELETE FOLDER {}", snapshotsDirectory);
+            FileUtil.deleteFolder(snapshotsDirectory);
+          } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+          }
 
-    try {
-      LOGGER.debug("DELETE FOLDER {}", pendingDirectory);
-      FileUtil.deleteFolder(pendingDirectory);
+          try {
+            LOGGER.debug("DELETE FOLDER {}", pendingDirectory);
+            FileUtil.deleteFolder(pendingDirectory);
+          } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+          }
+        });
+  }
+
+  private void purgePendingSnapshots() {
+    // TODO: If this methods is made public, ensure it is called with in this actor
+    try (final var files = Files.list(pendingDirectory)) {
+      files.filter(Files::isDirectory).forEach(this::purgePendingSnapshot);
     } catch (final IOException e) {
-      throw new UncheckedIOException(e);
+      LOGGER.error(
+          "Failed to purge pending snapshots, which may result in unnecessary disk usage and should be monitored",
+          e);
     }
   }
 
@@ -185,7 +205,7 @@ public final class FileBasedSnapshotStore
     final var pendingDirectoryName =
         String.format(RECEIVING_DIR_FORMAT, metadata.getSnapshotIdAsString(), nextStartCount);
     final var pendingSnapshotDir = pendingDirectory.resolve(pendingDirectoryName);
-    return new FileBasedReceivedSnapshot(metadata, pendingSnapshotDir, this);
+    return new FileBasedReceivedSnapshot(metadata, pendingSnapshotDir, this, actor);
   }
 
   @Override
@@ -207,7 +227,7 @@ public final class FileBasedSnapshotStore
       return Optional.empty();
     }
     final var directory = buildPendingSnapshotDirectory(newSnapshotId);
-    return Optional.of(new FileBasedTransientSnapshot(newSnapshotId, directory, this));
+    return Optional.of(new FileBasedTransientSnapshot(newSnapshotId, directory, this, actor));
   }
 
   private void observeSnapshotSize(final PersistedSnapshot persistedSnapshot) {
@@ -278,6 +298,7 @@ public final class FileBasedSnapshotStore
   }
 
   PersistedSnapshot newSnapshot(final FileBasedSnapshotMetadata metadata, final Path directory) {
+    // TODO: ensure called from within actor
     final var currentPersistedSnapshot = currentPersistedSnapshotRef.get();
 
     if (isCurrentSnapshotNewer(metadata)) {

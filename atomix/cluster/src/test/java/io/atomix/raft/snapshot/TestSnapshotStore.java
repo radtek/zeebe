@@ -19,7 +19,7 @@ import io.zeebe.snapshots.raft.PersistedSnapshot;
 import io.zeebe.snapshots.raft.PersistedSnapshotListener;
 import io.zeebe.snapshots.raft.ReceivableSnapshotStore;
 import io.zeebe.snapshots.raft.ReceivedSnapshot;
-import java.io.IOException;
+import io.zeebe.util.sched.future.ActorFuture;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -54,18 +54,15 @@ public class TestSnapshotStore implements ReceivableSnapshotStore {
   }
 
   @Override
-  public void purgePendingSnapshots() throws IOException {
-    receivedSnapshots.clear();
-  }
-
-  @Override
-  public void addSnapshotListener(final PersistedSnapshotListener listener) {
+  public ActorFuture<Boolean> addSnapshotListener(final PersistedSnapshotListener listener) {
     listeners.add(listener);
+    return null;
   }
 
   @Override
-  public void removeSnapshotListener(final PersistedSnapshotListener listener) {
+  public ActorFuture<Boolean> removeSnapshotListener(final PersistedSnapshotListener listener) {
     listeners.remove(listener);
+    return null;
   }
 
   @Override

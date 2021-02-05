@@ -7,6 +7,7 @@
  */
 package io.zeebe.snapshots.raft;
 
+import io.zeebe.util.sched.future.ActorFuture;
 import java.nio.file.Path;
 import java.util.function.Predicate;
 
@@ -22,5 +23,5 @@ public interface TransientSnapshot extends PersistableSnapshot {
    *     success
    * @return true on success, false otherwise
    */
-  boolean take(Predicate<Path> takeSnapshot);
+  ActorFuture<Boolean> take(Predicate<Path> takeSnapshot);
 }

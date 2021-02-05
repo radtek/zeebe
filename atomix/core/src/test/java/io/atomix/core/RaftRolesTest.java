@@ -272,7 +272,7 @@ public final class RaftRolesTest {
                   .withMembers(memberIds)
                   .withDataDirectory(
                       new File(new File(atomixRule.getDataDir(), "log"), "" + nodeId))
-                  .withSnapshotStoreFactory(new FileBasedSnapshotStoreFactory())
+                  .withSnapshotStoreFactory(new FileBasedSnapshotStoreFactory(null))
                   .build();
 
           final Atomix atomix = builder.withPartitionGroups(partitionGroup).build();

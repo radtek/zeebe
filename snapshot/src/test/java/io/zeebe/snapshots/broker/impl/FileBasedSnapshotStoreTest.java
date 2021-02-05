@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.fail;
 
 import io.atomix.utils.time.WallClockTimestamp;
 import io.zeebe.util.FileUtil;
+import io.zeebe.util.sched.ActorScheduler;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -38,7 +39,7 @@ public class FileBasedSnapshotStoreTest {
 
   @Before
   public void before() {
-    factory = new FileBasedSnapshotStoreFactory();
+    factory = new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build());
     partitionName = "1";
     root = temporaryFolder.getRoot();
 
@@ -89,7 +90,7 @@ public class FileBasedSnapshotStoreTest {
 
     // when
     final var snapshotStore =
-        new FileBasedSnapshotStoreFactory()
+        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build())
             .createReceivableSnapshotStore(root.toPath(), partitionName);
 
     // then
@@ -121,7 +122,7 @@ public class FileBasedSnapshotStoreTest {
 
     // when
     final var snapshotStore =
-        new FileBasedSnapshotStoreFactory()
+        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build())
             .createReceivableSnapshotStore(root.toPath(), partitionName);
 
     // then

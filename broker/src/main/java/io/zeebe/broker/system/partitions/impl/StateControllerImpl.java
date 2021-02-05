@@ -340,7 +340,7 @@ public class StateControllerImpl implements StateController, PersistedSnapshotLi
     }
 
     public boolean apply(final SnapshotChunk snapshotChunk) throws IOException {
-      return receivedSnapshot.apply(snapshotChunk);
+      return receivedSnapshot.apply(snapshotChunk).join();
     }
   }
 }

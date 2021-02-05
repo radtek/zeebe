@@ -19,6 +19,7 @@ import io.atomix.storage.journal.JournalSegmentDescriptor;
 import io.zeebe.logstreams.util.AtomixLogStorageRule;
 import io.zeebe.snapshots.broker.impl.FileBasedSnapshotStore;
 import io.zeebe.snapshots.broker.impl.SnapshotMetrics;
+import io.zeebe.util.sched.ActorScheduler;
 import io.zeebe.util.sched.testing.ActorSchedulerRule;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -141,7 +142,7 @@ public final class AtomixLogDeletionServiceTest {
               new FileBasedSnapshotStore(
                   new SnapshotMetrics("1"),
                   folder.newFolder("runtime").toPath(),
-                  folder.newFolder("snapshots").toPath()));
+                  folder.newFolder("snapshots").toPath(), ActorScheduler.newActorScheduler().build()));
     } catch (final IOException e) {
       throw new UncheckedIOException(e);
     }

@@ -12,7 +12,7 @@ import io.zeebe.snapshots.raft.PersistedSnapshot;
 import io.zeebe.snapshots.raft.PersistedSnapshotListener;
 import io.zeebe.snapshots.raft.PersistedSnapshotStore;
 import io.zeebe.snapshots.raft.SnapshotChunkReader;
-import java.io.IOException;
+import io.zeebe.util.sched.future.ActorFuture;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -85,17 +85,17 @@ public class NoopSnapshotStore implements PersistedSnapshotStore {
     return Optional.empty();
   }
 
-  @Override
-  public void purgePendingSnapshots() throws IOException {}
 
   @Override
-  public void addSnapshotListener(final PersistedSnapshotListener listener) {
-    this.listeners.add(listener);
+  public ActorFuture<Boolean> addSnapshotListener(final PersistedSnapshotListener listener) {
+    listeners.add(listener);
+    return null;
   }
 
   @Override
-  public void removeSnapshotListener(final PersistedSnapshotListener listener) {
-    this.listeners.remove(listener);
+  public ActorFuture<Boolean> removeSnapshotListener(final PersistedSnapshotListener listener) {
+    listeners.remove(listener);
+    return null;
   }
 
   @Override

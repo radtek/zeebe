@@ -8,7 +8,7 @@
 package io.zeebe.snapshots.raft;
 
 import io.zeebe.util.CloseableSilently;
-import java.io.IOException;
+import io.zeebe.util.sched.future.ActorFuture;
 import java.util.Optional;
 
 /**
@@ -35,27 +35,22 @@ public interface PersistedSnapshotStore extends CloseableSilently {
   Optional<PersistedSnapshot> getLatestSnapshot();
 
   /**
-   * Purges all ongoing pending/transient/volatile snapshots.
-   *
-   * @throws IOException when there was an unexpected IO issue
-   */
-  void purgePendingSnapshots() throws IOException;
-
-  /**
    * Adds an {@link PersistedSnapshotListener} to the store, which is notified when a new {@link
    * PersistedSnapshot} is persisted at this store.
    *
    * @param listener the listener which should be added and notified later
+   * @return
    */
-  void addSnapshotListener(PersistedSnapshotListener listener);
+  ActorFuture<Boolean> addSnapshotListener(PersistedSnapshotListener listener);
 
   /**
    * Removes an registered {@link PersistedSnapshotListener} from the store. The listener will no
    * longer called when a new {@link PersistedSnapshot} is persisted at this store.
    *
    * @param listener the listener which should be removed
+   * @return
    */
-  void removeSnapshotListener(PersistedSnapshotListener listener);
+  ActorFuture<Boolean> removeSnapshotListener(PersistedSnapshotListener listener);
 
   /**
    * @return the snapshot index of the latest {@link PersistedSnapshot}

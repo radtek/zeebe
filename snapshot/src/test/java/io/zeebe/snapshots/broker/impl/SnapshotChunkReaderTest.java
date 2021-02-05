@@ -17,6 +17,7 @@ import io.zeebe.snapshots.broker.ConstructableSnapshotStore;
 import io.zeebe.snapshots.raft.SnapshotChunk;
 import io.zeebe.util.ChecksumUtil;
 import io.zeebe.util.FileUtil;
+import io.zeebe.util.sched.ActorScheduler;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -43,7 +44,8 @@ public class SnapshotChunkReaderTest {
 
   @Before
   public void before() {
-    final FileBasedSnapshotStoreFactory factory = new FileBasedSnapshotStoreFactory();
+    final FileBasedSnapshotStoreFactory factory =
+        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build());
     final String partitionName = "1";
     final File root = temporaryFolder.getRoot();
 
@@ -60,7 +62,7 @@ public class SnapshotChunkReaderTest {
         persistedSnapshotStore.newTransientSnapshot(index, term, 1, 0).get();
     transientSnapshot.take(
         p -> takeSnapshot(p, List.of("file3", "file1", "file2"), List.of("content", "this", "is")));
-    final var persistedSnapshot = transientSnapshot.persist();
+    final var persistedSnapshot = transientSnapshot.persist().join();
 
     // when
     final var snapshotChunks = new ArrayList<SnapshotChunk>();
@@ -114,7 +116,7 @@ public class SnapshotChunkReaderTest {
         persistedSnapshotStore.newTransientSnapshot(index, term, 1, 0).get();
     transientSnapshot.take(
         p -> takeSnapshot(p, List.of("file3", "file1", "file2"), List.of("content", "this", "is")));
-    final var persistedSnapshot = transientSnapshot.persist();
+    final var persistedSnapshot = transientSnapshot.persist().join();
 
     // when
     final var snapshotChunks = new ArrayList<SnapshotChunk>();
@@ -162,7 +164,7 @@ public class SnapshotChunkReaderTest {
         persistedSnapshotStore.newTransientSnapshot(index, term, 1, 0).get();
     transientSnapshot.take(
         p -> takeSnapshot(p, List.of("file3", "file1", "file2"), List.of("content", "this", "is")));
-    final var persistedSnapshot = transientSnapshot.persist();
+    final var persistedSnapshot = transientSnapshot.persist().join();
 
     // when
     final var snapshotChunkReader = persistedSnapshot.newChunkReader();

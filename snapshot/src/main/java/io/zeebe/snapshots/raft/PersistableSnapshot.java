@@ -7,6 +7,8 @@
  */
 package io.zeebe.snapshots.raft;
 
+import io.zeebe.util.sched.future.ActorFuture;
+
 /** A volatile snapshot which can be persisted. */
 public interface PersistableSnapshot {
 
@@ -18,5 +20,5 @@ public interface PersistableSnapshot {
    *
    * @return the persisted snapshot
    */
-  PersistedSnapshot persist();
+  ActorFuture<PersistedSnapshot> persist();
 }

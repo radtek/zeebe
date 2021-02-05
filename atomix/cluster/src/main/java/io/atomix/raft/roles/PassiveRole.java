@@ -41,7 +41,7 @@ import io.atomix.utils.concurrent.ThreadContext;
 import io.zeebe.snapshots.raft.PersistedSnapshot;
 import io.zeebe.snapshots.raft.PersistedSnapshotListener;
 import io.zeebe.snapshots.raft.ReceivedSnapshot;
-import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.slf4j.Logger;
@@ -54,6 +54,7 @@ public class PassiveRole extends InactiveRole {
   private long pendingSnapshotStartTimestamp;
   private ReceivedSnapshot pendingSnapshot;
   private PersistedSnapshotListener snapshotListener;
+  private ByteBuffer nextPendingSnapshotChunkId;
 
   public PassiveRole(final RaftContext context) {
     super(context);
@@ -218,14 +219,14 @@ public class PassiveRole extends InactiveRole {
       pendingSnapshotStartTimestamp = System.currentTimeMillis();
       snapshotReplicationMetrics.incrementCount();
     } else {
-      // skip if we already have this chunk
+      /*// skip if we already have this chunk
       if (pendingSnapshot.containsChunk(request.chunkId())) {
         return CompletableFuture.completedFuture(
             logResponse(InstallResponse.builder().withStatus(RaftResponse.Status.OK).build()));
-      }
+      }*/
 
       // fail the request if this is not the expected next chunk
-      if (!pendingSnapshot.isExpectedChunk(request.chunkId())) {
+      if (!isExpectedChunk(request.chunkId())) {
         return CompletableFuture.completedFuture(
             logResponse(
                 InstallResponse.builder()
@@ -239,7 +240,7 @@ public class PassiveRole extends InactiveRole {
 
     boolean snapshotChunkConsumptionFailed;
     try {
-      snapshotChunkConsumptionFailed = !pendingSnapshot.apply(snapshotChunk);
+      snapshotChunkConsumptionFailed = !pendingSnapshot.apply(snapshotChunk).join();
     } catch (final Exception e) {
       log.error("Failed to write pending snapshot chunk {}, rolling back", pendingSnapshot, e);
       snapshotChunkConsumptionFailed = true;
@@ -281,7 +282,7 @@ public class PassiveRole extends InactiveRole {
       snapshotReplicationMetrics.decrementCount();
       snapshotReplicationMetrics.observeDuration(elapsed);
     } else {
-      pendingSnapshot.setNextExpected(request.nextChunkId());
+      setNextExpected(request.nextChunkId());
     }
 
     return CompletableFuture.completedFuture(
@@ -348,7 +349,16 @@ public class PassiveRole extends InactiveRole {
                 .build()));
   }
 
+  private void setNextExpected(final ByteBuffer nextChunkId) {
+    nextPendingSnapshotChunkId = nextChunkId;
+  }
+
+  private boolean isExpectedChunk(final ByteBuffer chunkId) {
+    return nextPendingSnapshotChunkId == null || nextPendingSnapshotChunkId.equals(chunkId);
+  }
+
   private void abortPendingSnapshots() {
+    nextPendingSnapshotChunkId = null;
     if (pendingSnapshot != null) {
       log.info("Rolling back snapshot {}", pendingSnapshot);
       try {
@@ -360,15 +370,6 @@ public class PassiveRole extends InactiveRole {
       pendingSnapshotStartTimestamp = 0L;
 
       snapshotReplicationMetrics.decrementCount();
-    }
-
-    // as a safe guard, we clean up any orphaned pending snapshots
-    try {
-      raft.getPersistedSnapshotStore().purgePendingSnapshots();
-    } catch (final IOException e) {
-      log.error(
-          "Failed to purge pending snapshots, which may result in unnecessary disk usage and should be monitored",
-          e);
     }
   }
 

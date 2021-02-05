@@ -10,6 +10,8 @@ package io.zeebe.snapshots.broker.impl;
 import io.zeebe.snapshots.raft.PersistedSnapshot;
 import io.zeebe.snapshots.raft.TransientSnapshot;
 import io.zeebe.util.FileUtil;
+import io.zeebe.util.sched.ActorControl;
+import io.zeebe.util.sched.future.ActorFuture;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.function.Predicate;
@@ -24,20 +26,27 @@ public final class FileBasedTransientSnapshot implements TransientSnapshot {
   private static final Logger LOGGER = LoggerFactory.getLogger(FileBasedTransientSnapshot.class);
 
   private final Path directory;
+  private final ActorControl actor;
   private final FileBasedSnapshotStore snapshotStore;
   private final FileBasedSnapshotMetadata metadata;
 
   FileBasedTransientSnapshot(
       final FileBasedSnapshotMetadata metadata,
       final Path directory,
-      final FileBasedSnapshotStore snapshotStore) {
+      final FileBasedSnapshotStore snapshotStore,
+      final ActorControl actor) {
     this.metadata = metadata;
     this.snapshotStore = snapshotStore;
     this.directory = directory;
+    this.actor = actor;
   }
 
   @Override
-  public boolean take(final Predicate<Path> takeSnapshot) {
+  public ActorFuture<Boolean> take(final Predicate<Path> takeSnapshot) {
+    return actor.call(() -> takeInternal(takeSnapshot));
+  }
+
+  private boolean takeInternal(final Predicate<Path> takeSnapshot) {
     final var snapshotMetrics = snapshotStore.getSnapshotMetrics();
     boolean failed;
 
@@ -59,20 +68,23 @@ public final class FileBasedTransientSnapshot implements TransientSnapshot {
 
   @Override
   public void abort() {
-    try {
-      LOGGER.debug("DELETE dir {}", directory);
-      FileUtil.deleteFolder(directory);
-    } catch (final IOException e) {
-      LOGGER.warn("Failed to delete pending snapshot {}", this, e);
-    }
+    actor.call(
+        () -> {
+          try {
+            LOGGER.debug("DELETE dir {}", directory);
+            FileUtil.deleteFolder(directory);
+          } catch (final IOException e) {
+            LOGGER.warn("Failed to delete pending snapshot {}", this, e);
+          }
+        });
   }
 
   @Override
-  public PersistedSnapshot persist() {
-    return snapshotStore.newSnapshot(metadata, directory);
+  public ActorFuture<PersistedSnapshot> persist() {
+    return actor.call(() -> snapshotStore.newSnapshot(metadata, directory));
   }
 
-  public Path getPath() {
+  private Path getPath() {
     return directory;
   }
 
