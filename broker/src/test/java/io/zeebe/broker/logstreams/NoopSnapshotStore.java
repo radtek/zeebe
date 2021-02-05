@@ -85,7 +85,6 @@ public class NoopSnapshotStore implements PersistedSnapshotStore {
     return Optional.empty();
   }
 
-
   @Override
   public ActorFuture<Boolean> addSnapshotListener(final PersistedSnapshotListener listener) {
     listeners.add(listener);

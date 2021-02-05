@@ -147,25 +147,42 @@ public final class AsyncSnapshotDirector extends Actor {
                   return;
                 }
 
-                LOG.debug("Created snapshot for {}", processorName);
-                pendingSnapshot = optionalPendingSnapshot.get();
+                optionalPendingSnapshot
+                    .get()
+                    .onSnapshotTaken(
+                        snapshotTakenError ->
+                            actor.run(
+                                () -> {
+                                  if (snapshotTakenError != null) {
+                                    LOG.error(
+                                        "Could not take a snapshot for {}",
+                                        processorName,
+                                        snapshotTakenError);
+                                  }
+                                  LOG.debug("Created snapshot for {}", processorName);
+                                  pendingSnapshot = optionalPendingSnapshot.get();
 
-                final ActorFuture<Long> lastWrittenPosition =
-                    streamProcessor.getLastWrittenPositionAsync();
-                actor.runOnCompletion(
-                    lastWrittenPosition,
-                    (endPosition, error) -> {
-                      if (error == null) {
-                        LOG.info(LOG_MSG_WAIT_UNTIL_COMMITTED, endPosition, commitPosition);
-                        lastWrittenEventPosition = endPosition;
-                        onCommitCheck();
-                      } else {
-                        lastWrittenEventPosition = null;
-                        takingSnapshot = false;
-                        pendingSnapshot = null;
-                        LOG.error(ERROR_MSG_ON_RESOLVE_WRITTEN_POS, error);
-                      }
-                    });
+                                  final ActorFuture<Long> lastWrittenPosition =
+                                      streamProcessor.getLastWrittenPositionAsync();
+                                  actor.runOnCompletion(
+                                      lastWrittenPosition,
+                                      (endPosition, error) -> {
+                                        if (error == null) {
+                                          LOG.info(
+                                              LOG_MSG_WAIT_UNTIL_COMMITTED,
+                                              endPosition,
+                                              commitPosition);
+                                          lastWrittenEventPosition = endPosition;
+                                          onCommitCheck();
+                                        } else {
+                                          lastWrittenEventPosition = null;
+                                          takingSnapshot = false;
+                                          pendingSnapshot = null;
+                                          LOG.error(ERROR_MSG_ON_RESOLVE_WRITTEN_POS, error);
+                                        }
+                                      });
+                                }));
+
               } else {
                 takingSnapshot = false;
                 LOG.error(
@@ -184,9 +201,9 @@ public final class AsyncSnapshotDirector extends Actor {
                   && lastWrittenEventPosition != null
                   && currentCommitPosition >= lastWrittenEventPosition) {
 
-                final var snapshotPersistfuture = pendingSnapshot.persist();
+                final var snapshotPersistFuture = pendingSnapshot.persist();
 
-                snapshotPersistfuture.onComplete(
+                snapshotPersistFuture.onComplete(
                     (snapshot, persistError) -> {
                       if (persistError != null) {
                         LOG.error(ERROR_MSG_MOVE_SNAPSHOT, persistError);

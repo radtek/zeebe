@@ -142,7 +142,8 @@ public final class AtomixLogDeletionServiceTest {
               new FileBasedSnapshotStore(
                   new SnapshotMetrics("1"),
                   folder.newFolder("runtime").toPath(),
-                  folder.newFolder("snapshots").toPath(), ActorScheduler.newActorScheduler().build()));
+                  folder.newFolder("snapshots").toPath(),
+                  ActorScheduler.newActorScheduler().build()));
     } catch (final IOException e) {
       throw new UncheckedIOException(e);
     }

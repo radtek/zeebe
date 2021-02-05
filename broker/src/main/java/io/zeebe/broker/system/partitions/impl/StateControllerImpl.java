@@ -21,6 +21,7 @@ import io.zeebe.snapshots.raft.ReceivedSnapshot;
 import io.zeebe.snapshots.raft.SnapshotChunk;
 import io.zeebe.snapshots.raft.TransientSnapshot;
 import io.zeebe.util.FileUtil;
+import io.zeebe.util.sched.future.ActorFuture;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -97,7 +98,7 @@ public class StateControllerImpl implements StateController, PersistedSnapshotLi
             snapshotIndexedEntry.entry().term(),
             lowerBoundSnapshotPosition,
             exportedPosition);
-    transientSnapshot.ifPresent(this::takeSnapshot);
+    transientSnapshot.map(this::takeSnapshot);
     return transientSnapshot;
   }
 
@@ -164,8 +165,8 @@ public class StateControllerImpl implements StateController, PersistedSnapshotLi
     return db != null;
   }
 
-  private void takeSnapshot(final TransientSnapshot snapshot) {
-    snapshot.take(
+  private ActorFuture<Boolean> takeSnapshot(final TransientSnapshot snapshot) {
+    return snapshot.take(
         snapshotDir -> {
           if (db == null) {
             LOG.error("Expected to take a snapshot, but no database was opened");

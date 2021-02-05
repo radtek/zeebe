@@ -27,7 +27,6 @@ import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import org.agrona.concurrent.UnsafeBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -234,11 +233,6 @@ public class FileBasedReceivedSnapshot implements ReceivedSnapshot {
     }
 
     return snapshotStore.newSnapshot(metadata, directory);
-  }
-
-  private String getFile(final ByteBuffer chunkId) {
-    final var view = new UnsafeBuffer(chunkId);
-    return view.getStringWithoutLengthAscii(0, chunkId.remaining());
   }
 
   @Override

@@ -12,8 +12,10 @@ import io.zeebe.snapshots.raft.TransientSnapshot;
 import io.zeebe.util.FileUtil;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
+import io.zeebe.util.sched.future.CompletableActorFuture;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +31,7 @@ public final class FileBasedTransientSnapshot implements TransientSnapshot {
   private final ActorControl actor;
   private final FileBasedSnapshotStore snapshotStore;
   private final FileBasedSnapshotMetadata metadata;
+  private final ActorFuture<Void> takenFuture = new CompletableActorFuture<>();
 
   FileBasedTransientSnapshot(
       final FileBasedSnapshotMetadata metadata,
@@ -46,6 +49,11 @@ public final class FileBasedTransientSnapshot implements TransientSnapshot {
     return actor.call(() -> takeInternal(takeSnapshot));
   }
 
+  @Override
+  public void onSnapshotTaken(final Consumer<Throwable> runnable) {
+    actor.call(() -> takenFuture.onComplete((nothing, error) -> runnable.accept(error)));
+  }
+
   private boolean takeInternal(final Predicate<Path> takeSnapshot) {
     final var snapshotMetrics = snapshotStore.getSnapshotMetrics();
     boolean failed;
@@ -53,9 +61,11 @@ public final class FileBasedTransientSnapshot implements TransientSnapshot {
     try (final var ignored = snapshotMetrics.startTimer()) {
       try {
         failed = !takeSnapshot.test(getPath());
+        takenFuture.complete(null);
       } catch (final Exception exception) {
-        LOGGER.warn("Catched unexpected exception on taking snapshot ({})", metadata, exception);
+        LOGGER.warn("Unexpected exception on taking snapshot ({})", metadata, exception);
         failed = true;
+        takenFuture.completeExceptionally(exception);
       }
     }
 

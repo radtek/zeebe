@@ -38,7 +38,8 @@ public class ReceivedSnapshotTest {
   public void before() throws Exception {
     final String partitionName = "1";
 
-    final var senderFactory = new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build());
+    final var senderFactory =
+        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build());
     senderFactory.createReceivableSnapshotStore(
         temporaryFolder.newFolder("sender").toPath(), partitionName);
     senderSnapshotStore = senderFactory.getConstructableSnapshotStore(partitionName);
@@ -249,7 +250,7 @@ public class ReceivedSnapshotTest {
     }
   }*/
 
- /* @Test
+  /* @Test
   public void shouldNotExistChunkWithDifferentReceivingSnapshot() throws Exception {
     // given
     final var index = 1L;
@@ -280,7 +281,7 @@ public class ReceivedSnapshotTest {
     }
   }*/
 
- /* @Test
+  /* @Test
   public void shouldCheckForNextChunk() {
     // given
     final var index = 1L;

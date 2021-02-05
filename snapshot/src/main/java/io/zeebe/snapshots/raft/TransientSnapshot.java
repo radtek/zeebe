@@ -9,6 +9,7 @@ package io.zeebe.snapshots.raft;
 
 import io.zeebe.util.sched.future.ActorFuture;
 import java.nio.file.Path;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /** A transient snapshot which can be persisted after taking a snapshot. */
@@ -24,4 +25,6 @@ public interface TransientSnapshot extends PersistableSnapshot {
    * @return true on success, false otherwise
    */
   ActorFuture<Boolean> take(Predicate<Path> takeSnapshot);
+
+  void onSnapshotTaken(Consumer<Throwable> runnable);
 }
