@@ -17,11 +17,11 @@ import java.util.Set;
 
 public class TestDataGenerator {
 
+  static final Random random = new Random();
+
   public static Collection<TestDataRecord> generateTestRecords(
       final int workflows, final int pathsPerWorkflow) {
     final List<TestDataRecord> records = new ArrayList<>();
-
-    final Random random = new Random();
 
     for (int workflowIndex = 0; workflowIndex < workflows; workflowIndex++) {
       final long workflowSeed = random.nextLong();
