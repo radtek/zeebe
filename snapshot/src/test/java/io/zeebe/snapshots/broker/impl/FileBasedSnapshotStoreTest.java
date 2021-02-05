@@ -39,7 +39,7 @@ public class FileBasedSnapshotStoreTest {
 
   @Before
   public void before() {
-    factory = new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build());
+    factory = new FileBasedSnapshotStoreFactory(createActorScheduler());
     partitionName = "1";
     root = temporaryFolder.getRoot();
 
@@ -52,6 +52,13 @@ public class FileBasedSnapshotStoreTest {
             .resolve(FileBasedSnapshotStoreFactory.SNAPSHOTS_DIRECTORY);
     pendingSnapshotsDir =
         temporaryFolder.getRoot().toPath().resolve(FileBasedSnapshotStoreFactory.PENDING_DIRECTORY);
+  }
+
+
+  private ActorScheduler createActorScheduler() {
+    final var actorScheduler = ActorScheduler.newActorScheduler().build();
+    actorScheduler.start();
+    return actorScheduler;
   }
 
   @Test
@@ -90,7 +97,7 @@ public class FileBasedSnapshotStoreTest {
 
     // when
     final var snapshotStore =
-        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build())
+        new FileBasedSnapshotStoreFactory(createActorScheduler())
             .createReceivableSnapshotStore(root.toPath(), partitionName);
 
     // then
@@ -122,7 +129,7 @@ public class FileBasedSnapshotStoreTest {
 
     // when
     final var snapshotStore =
-        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build())
+        new FileBasedSnapshotStoreFactory(createActorScheduler())
             .createReceivableSnapshotStore(root.toPath(), partitionName);
 
     // then

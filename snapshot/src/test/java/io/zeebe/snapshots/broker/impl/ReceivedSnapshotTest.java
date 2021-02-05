@@ -39,14 +39,20 @@ public class ReceivedSnapshotTest {
     final String partitionName = "1";
 
     final var senderFactory =
-        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build());
+        new FileBasedSnapshotStoreFactory(createActorScheduler());
     senderFactory.createReceivableSnapshotStore(
         temporaryFolder.newFolder("sender").toPath(), partitionName);
     senderSnapshotStore = senderFactory.getConstructableSnapshotStore(partitionName);
     receiverSnapshotStore =
-        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build())
+        new FileBasedSnapshotStoreFactory(createActorScheduler())
             .createReceivableSnapshotStore(
                 temporaryFolder.newFolder("received").toPath(), partitionName);
+  }
+
+  private ActorScheduler createActorScheduler() {
+    final var actorScheduler = ActorScheduler.newActorScheduler().build();
+    actorScheduler.start();
+    return actorScheduler;
   }
 
   @Test

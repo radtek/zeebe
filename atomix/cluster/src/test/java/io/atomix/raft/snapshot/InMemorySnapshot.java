@@ -169,7 +169,9 @@ public class InMemorySnapshot implements PersistedSnapshot, ReceivedSnapshot {
   }
 
   @Override
-  public void abort() {}
+  public ActorFuture<Void> abort() {
+    return null;
+  }
 
   @Override
   public ActorFuture<PersistedSnapshot> persist() {

@@ -22,7 +22,7 @@ public final class FileBasedSnapshotStoreFactoryTest {
     // given
     final var root = temporaryFolder.getRoot().toPath();
     final var factory =
-        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build());
+        new FileBasedSnapshotStoreFactory(createActorScheduler());
 
     // when
     final var store = factory.createReceivableSnapshotStore(root, "ignored");
@@ -35,5 +35,11 @@ public final class FileBasedSnapshotStoreFactoryTest {
         .exists()
         .isDirectory();
     assertThat(store.getLatestSnapshot()).isEmpty();
+  }
+
+  private ActorScheduler createActorScheduler() {
+    final var actorScheduler = ActorScheduler.newActorScheduler().build();
+    actorScheduler.start();
+    return actorScheduler;
   }
 }

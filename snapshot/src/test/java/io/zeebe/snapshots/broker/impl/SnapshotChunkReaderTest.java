@@ -45,12 +45,18 @@ public class SnapshotChunkReaderTest {
   @Before
   public void before() {
     final FileBasedSnapshotStoreFactory factory =
-        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build());
+        new FileBasedSnapshotStoreFactory(createActorScheduler());
     final String partitionName = "1";
     final File root = temporaryFolder.getRoot();
 
     factory.createReceivableSnapshotStore(root.toPath(), partitionName);
     persistedSnapshotStore = factory.getConstructableSnapshotStore(partitionName);
+  }
+
+  private ActorScheduler createActorScheduler() {
+    final var actorScheduler = ActorScheduler.newActorScheduler().build();
+    actorScheduler.start();
+    return actorScheduler;
   }
 
   @Test

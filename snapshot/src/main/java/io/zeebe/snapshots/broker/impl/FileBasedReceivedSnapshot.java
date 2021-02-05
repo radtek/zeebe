@@ -16,6 +16,7 @@ import io.zeebe.util.ChecksumUtil;
 import io.zeebe.util.FileUtil;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
+import io.zeebe.util.sched.future.CompletableActorFuture;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -75,8 +76,7 @@ public class FileBasedReceivedSnapshot implements ReceivedSnapshot {
 
   private Boolean applyInternal(final SnapshotChunk snapshotChunk) throws IOException {
 
-
-    if(containsChunk(snapshotChunk.getChunkName())) {
+    if (containsChunk(snapshotChunk.getChunkName())) {
       return true;
     }
 
@@ -178,42 +178,47 @@ public class FileBasedReceivedSnapshot implements ReceivedSnapshot {
   }
 
   @Override
-  public void abort() {
-    actor.call(
-        () -> {
-          try {
-            LOGGER.debug("DELETE dir {}", directory);
-            FileUtil.deleteFolder(directory);
-          } catch (final NoSuchFileException nsfe) {
-            LOGGER.debug(
-                "Tried to delete pending dir {}, but doesn't exist. Either was already removed or no chunk was applied until now.",
-                directory,
-                nsfe);
-          } catch (final IOException e) {
-            LOGGER.warn("Failed to delete pending snapshot {}", this, e);
-          }
-        });
+  public ActorFuture<Void> abort() {
+    return actor.call(this::abortInternal);
   }
 
   @Override
   public ActorFuture<PersistedSnapshot> persist() {
-    return actor.call(this::persistInernal);
+    final CompletableActorFuture<PersistedSnapshot> future = new CompletableActorFuture();
+    actor.call(() -> persistInernal(future));
+    return future;
   }
 
-  private PersistedSnapshot persistInernal() {
+  private void abortInternal() {
+    try {
+      LOGGER.debug("DELETE dir {}", directory);
+      FileUtil.deleteFolder(directory);
+    } catch (final NoSuchFileException nsfe) {
+      LOGGER.debug(
+          "Tried to delete pending dir {}, but doesn't exist. Either was already removed or no chunk was applied until now.",
+          directory,
+          nsfe);
+    } catch (final IOException e) {
+      LOGGER.warn("Failed to delete pending snapshot {}", this, e);
+    }
+  }
+
+  private void persistInernal(final CompletableActorFuture future) {
     if (snapshotStore.hasSnapshotId(metadata.getSnapshotIdAsString())) {
-      abort();
-      return snapshotStore.getLatestSnapshot().orElseThrow();
+      abortInternal();
+      future.complete(snapshotStore.getLatestSnapshot().orElseThrow());
     }
 
     final var files = directory.toFile().listFiles();
     Objects.requireNonNull(files, "No chunks have been applied yet");
 
     if (files.length != expectedTotalCount) {
-      throw new IllegalStateException(
-          String.format(
-              "Expected '%d' chunk files for this snapshot, but found '%d'. Files are: %s.",
-              expectedSnapshotChecksum, files.length, Arrays.toString(files)));
+      future.completeExceptionally(
+          new IllegalStateException(
+              String.format(
+                  "Expected '%d' chunk files for this snapshot, but found '%d'. Files are: %s.",
+                  expectedSnapshotChecksum, files.length, Arrays.toString(files))));
+      return;
     }
 
     final var filePaths =
@@ -222,17 +227,26 @@ public class FileBasedReceivedSnapshot implements ReceivedSnapshot {
     try {
       actualSnapshotChecksum = ChecksumUtil.createCombinedChecksum(filePaths);
     } catch (final IOException e) {
-      throw new UncheckedIOException("Unexpected exception on calculating snapshot checksum.", e);
+      future.complete(
+          new UncheckedIOException("Unexpected exception on calculating snapshot checksum.", e));
+      return;
     }
 
     if (actualSnapshotChecksum != expectedSnapshotChecksum) {
-      throw new IllegalStateException(
-          String.format(
-              "Expected snapshot checksum %d, but calculated %d.",
-              expectedSnapshotChecksum, actualSnapshotChecksum));
+      future.completeExceptionally(
+          new IllegalStateException(
+              String.format(
+                  "Expected snapshot checksum %d, but calculated %d.",
+                  expectedSnapshotChecksum, actualSnapshotChecksum)));
+      return;
     }
 
-    return snapshotStore.newSnapshot(metadata, directory);
+    try {
+      final PersistedSnapshot value = snapshotStore.newSnapshot(metadata, directory);
+      future.complete(value);
+    } catch (final Exception e) {
+      future.completeExceptionally(e);
+    }
   }
 
   @Override

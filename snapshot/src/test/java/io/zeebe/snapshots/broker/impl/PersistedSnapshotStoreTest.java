@@ -25,12 +25,18 @@ public class PersistedSnapshotStoreTest {
   @Before
   public void before() {
     final FileBasedSnapshotStoreFactory factory =
-        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build());
+        new FileBasedSnapshotStoreFactory(createActorScheduler());
 
     final var partitionName = "1";
     final var root = temporaryFolder.getRoot();
 
     persistedSnapshotStore = factory.createReceivableSnapshotStore(root.toPath(), partitionName);
+  }
+
+  private ActorScheduler createActorScheduler() {
+    final var actorScheduler = ActorScheduler.newActorScheduler().build();
+    actorScheduler.start();
+    return actorScheduler;
   }
 
   @Test

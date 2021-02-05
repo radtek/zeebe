@@ -51,19 +51,25 @@ public class FileBasedReceivedSnapshotTest {
     final File senderRoot = temporaryFolder.newFolder("sender");
 
     final var senderSnapshotStoreFactory =
-        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build());
+        new FileBasedSnapshotStoreFactory(createActorScheduler());
     senderSnapshotStoreFactory.createReceivableSnapshotStore(senderRoot.toPath(), partitionName);
     senderSnapshotStore = senderSnapshotStoreFactory.getConstructableSnapshotStore(partitionName);
 
     final var receiverRoot = temporaryFolder.newFolder("received");
     receiverSnapshotStore =
-        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build())
+        new FileBasedSnapshotStoreFactory(createActorScheduler())
             .createReceivableSnapshotStore(receiverRoot.toPath(), partitionName);
 
     receiverSnapshotsDir =
         receiverRoot.toPath().resolve(FileBasedSnapshotStoreFactory.SNAPSHOTS_DIRECTORY);
     receiverPendingSnapshotsDir =
         receiverRoot.toPath().resolve(FileBasedSnapshotStoreFactory.PENDING_DIRECTORY);
+  }
+
+  private ActorScheduler createActorScheduler() {
+    final var actorScheduler = ActorScheduler.newActorScheduler().build();
+    actorScheduler.start();
+    return actorScheduler;
   }
 
   @Test
@@ -243,7 +249,7 @@ public class FileBasedReceivedSnapshotTest {
     final var term = 0L;
 
     final FileBasedSnapshotStoreFactory fileBasedSnapshotStoreFactory =
-        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build());
+        new FileBasedSnapshotStoreFactory(createActorScheduler());
     fileBasedSnapshotStoreFactory.createReceivableSnapshotStore(
         temporaryFolder.newFolder("other").toPath(), "1");
     final var otherStore = fileBasedSnapshotStoreFactory.getConstructableSnapshotStore("1");
@@ -424,10 +430,10 @@ public class FileBasedReceivedSnapshotTest {
                 snapshotChunkReader.next(), 0xCAFEL));
       }
     }
-    assertThatThrownBy(receivedSnapshot::persist).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> receivedSnapshot.persist().join()).hasCauseInstanceOf(IllegalStateException.class);
 
     // when
-    receivedSnapshot.abort();
+    receivedSnapshot.abort().join();
 
     // then
     assertThat(receiverPendingSnapshotsDir.toFile().listFiles()).isEmpty();
@@ -512,7 +518,7 @@ public class FileBasedReceivedSnapshotTest {
     }
 
     // when - then
-    assertThatThrownBy(receivedSnapshot::persist).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> receivedSnapshot.persist().join()).hasCauseInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -564,7 +570,7 @@ public class FileBasedReceivedSnapshotTest {
     }
 
     // when - then
-    assertThatThrownBy(receivedSnapshot::persist).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> receivedSnapshot.persist().join()).hasCauseInstanceOf(IllegalStateException.class);
   }
 
   @Test

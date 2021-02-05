@@ -12,8 +12,9 @@ import io.zeebe.util.sched.future.ActorFuture;
 /** A volatile snapshot which can be persisted. */
 public interface PersistableSnapshot {
 
-  /** Aborts the not yet persisted snapshot and removes all related data. */
-  void abort();
+  /** Aborts the not yet persisted snapshot and removes all related data.
+   * @return*/
+  ActorFuture<Void> abort();
 
   /**
    * Persists the snapshot with all his data and returns the representation of this snapshot.

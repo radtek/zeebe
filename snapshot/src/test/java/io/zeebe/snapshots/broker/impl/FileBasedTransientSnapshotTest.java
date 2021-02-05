@@ -39,7 +39,7 @@ public class FileBasedTransientSnapshotTest {
   @Before
   public void before() {
     final FileBasedSnapshotStoreFactory factory =
-        new FileBasedSnapshotStoreFactory(ActorScheduler.newActorScheduler().build());
+        new FileBasedSnapshotStoreFactory(createActorScheduler());
     final String partitionName = "1";
     final File root = temporaryFolder.getRoot();
 
@@ -55,6 +55,11 @@ public class FileBasedTransientSnapshotTest {
         temporaryFolder.getRoot().toPath().resolve(FileBasedSnapshotStoreFactory.PENDING_DIRECTORY);
   }
 
+  private ActorScheduler createActorScheduler() {
+    final var actorScheduler = ActorScheduler.newActorScheduler().build();
+    actorScheduler.start();
+    return actorScheduler;
+  }
   @Test
   public void shouldNotCreateDirForTakeTransientSnapshot() {
     // given

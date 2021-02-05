@@ -70,28 +70,29 @@ public final class FileBasedTransientSnapshot implements TransientSnapshot {
     }
 
     if (failed) {
-      abort();
+      abortInternal();
     }
 
     return !failed;
   }
 
   @Override
-  public void abort() {
-    actor.call(
-        () -> {
-          try {
-            LOGGER.debug("DELETE dir {}", directory);
-            FileUtil.deleteFolder(directory);
-          } catch (final IOException e) {
-            LOGGER.warn("Failed to delete pending snapshot {}", this, e);
-          }
-        });
+  public ActorFuture<Void> abort() {
+    return actor.call(this::abortInternal);
   }
 
   @Override
   public ActorFuture<PersistedSnapshot> persist() {
     return actor.call(() -> snapshotStore.newSnapshot(metadata, directory));
+  }
+
+  private void abortInternal() {
+    try {
+      LOGGER.debug("DELETE dir {}", directory);
+      FileUtil.deleteFolder(directory);
+    } catch (final IOException e) {
+      LOGGER.warn("Failed to delete pending snapshot {}", this, e);
+    }
   }
 
   private Path getPath() {
