@@ -19,7 +19,6 @@ import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.BiConsumer;
 import org.rocksdb.Checkpoint;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.OptimisticTransactionDB;
@@ -152,16 +151,6 @@ public class ZeebeTransactionDb<ColumnFamilyNames extends Enum<ColumnFamilyNames
       final ColumnFamilyNames columnFamilyName, final TransactionContext context) {
     return createColumnFamily(columnFamilyName, context, DbNullKey.INSTANCE, DbNil.INSTANCE)
         .isEmpty();
-  }
-
-  @Override
-  public <KeyType extends DbKey, ValueType extends DbValue> void forEach(
-      final ColumnFamilyNames columnFamily,
-      final TransactionContext context,
-      final KeyType keyInstance,
-      final ValueType valueInstance,
-      final BiConsumer<KeyType, ValueType> visitor) {
-    createColumnFamily(columnFamily, context, keyInstance, valueInstance).forEach(visitor);
   }
 
   @Override

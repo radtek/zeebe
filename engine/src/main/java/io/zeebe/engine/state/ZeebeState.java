@@ -185,7 +185,11 @@ public class ZeebeState {
       final KeyType keyInstance,
       final ValueType valueInstance,
       final BiConsumer<KeyType, ValueType> visitor) {
+
     final var newContext = zeebeDb.createContext();
-    zeebeDb.forEach(columnFamily, newContext, keyInstance, valueInstance, visitor);
+
+    zeebeDb
+        .createColumnFamily(columnFamily, newContext, keyInstance, valueInstance)
+        .forEach(visitor);
   }
 }
